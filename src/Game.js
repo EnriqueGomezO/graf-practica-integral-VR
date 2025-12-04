@@ -267,28 +267,26 @@ export class Game {
         this.isVRMode = true;
         this.player.enableVRMode();
         
-        // Ocultar modelo del jugador en VR (eres el personaje)
+        // Ocultar modelo del jugador en VR
         if (this.player.group) {
             this.player.group.visible = false;
         }
         
-        // Posicionar cámara VR en la cabeza del jugador
+        // Posicionar cámara VR
         this.cameraContainer.position.set(
             this.player.group.position.x,
             Config.VR_SETTINGS.PLAYER_HEIGHT,
             this.player.group.position.z
         );
         
-        // CORRECCIÓN: Forzar que la cámara mire hacia adelante (eje -Z)
-        this.cameraContainer.rotation.set(0, 0, 0);
+        // SOLUCIÓN DEFINITIVA: Rotar 180 grados (Math.PI) para mirar hacia los obstáculos
+        this.cameraContainer.rotation.set(0, Math.PI, 0);
         
         // Notificar a la UI
         window.dispatchEvent(new CustomEvent('game-vr-start'));
         
-        // Mostrar instrucciones VR específicas para Meta Quest
         this.showVRInstructions();
-        
-        console.log("🎮 Modo VR Meta Quest 3 activado - Vista alineada al frente");
+        console.log("🎮 Modo VR activado - Rotación corregida 180°");
     }
 
     onVREnd() {
@@ -1212,7 +1210,7 @@ export class Game {
 
     startGame() {
         this.clock.start();
-        console.log("🚀 INICIANDO JUEGO - Sistema VR Completo");
+        console.log("🚀 INICIANDO JUEGO");
         
         this.checkInitialCollisions();
         
@@ -1224,22 +1222,17 @@ export class Game {
         this.ui.uiContainer.style.display = 'block';
         this.ui.pauseButton.style.display = 'block';
 
-        // Actualizar estado
         this.isGameStarted = true;
         this.isGameOver = false;
         
-        // Iniciar música
         this.playBackgroundMusic();
-        
-        // Resetear lógica del juego
         this.resetGameLogic();
         
-        // CORRECCIÓN: Asegurar vista al frente si se inicia directo en VR
+        // CORRECCIÓN: Si inicia directo en VR, forzar mirada al frente
         if (this.isVRMode) {
-            this.cameraContainer.rotation.set(0, 0, 0);
+            this.cameraContainer.rotation.set(0, Math.PI, 0);
         }
         
-        // Iniciar loop de animación
         this.animate();
     }
 
@@ -1297,28 +1290,22 @@ export class Game {
         this.clock.start();
         console.log("🔄 Reiniciando el juego...");
         
-        // Ocultar UI de game over
         this.ui.gameOver.style.display = 'none';
         this.isGameOver = false;
         this.isPaused = false;
         
-        // Ocultar menú VR si está activo
         if (this.vrMenuSystem.isActive) {
             this.hideVRMenu();
         }
         
-        // Iniciar música
         this.playBackgroundMusic();
-        
-        // Resetear lógica
         this.resetGameLogic();
         
-        // CORRECCIÓN: Si reiniciamos en VR, asegurar que miramos al frente
+        // CORRECCIÓN: Al reiniciar en VR, forzar mirada al frente de nuevo
         if (this.isVRMode) {
-            this.cameraContainer.rotation.set(0, 0, 0);
+            this.cameraContainer.rotation.set(0, Math.PI, 0);
         }
         
-        // Reanudar animación
         this.animate();
     }
 
@@ -1844,17 +1831,28 @@ export class Game {
             
             // En VR primera persona, la cámara sigue al jugador
             if (this.isVRMode) {
+                // 1. Seguir posición X y Z del jugador
                 this.cameraContainer.position.x = this.player.group.position.x;
                 this.cameraContainer.position.z = this.player.group.position.z;
                 
-                // Ajustar altura durante saltos
+                // 2. Gestionar la altura (Y) de la cámara
                 if (this.player.state === Config.PLAYER_STATE.JUMPING) {
+                    // Si salta, seguimos la física del salto (altura base + salto)
                     this.cameraContainer.position.y = Config.VR_SETTINGS.PLAYER_HEIGHT + this.player.group.position.y;
                 } else {
-                    this.cameraContainer.position.y = Config.VR_SETTINGS.PLAYER_HEIGHT;
+                    // Si no salta, determinamos la altura objetivo (Pie o Rodando)
+                    let targetHeight = Config.VR_SETTINGS.PLAYER_HEIGHT; // Altura normal (1.6m)
+                    
+                    if (this.player.state === Config.PLAYER_STATE.ROLLING) {
+                        targetHeight = 0.6; // Altura al rodar (bajamos a 60cm del suelo)
+                    }
+                    
+                    // EFECTO SUAVE: Movemos la cámara hacia la altura objetivo poco a poco
+                    // Esto crea la sensación de "bajar la cabeza" al rodar
+                    this.cameraContainer.position.y += (targetHeight - this.cameraContainer.position.y) * 0.15;
                 }
-                
-                // Actualizar posición del menú VR si está activo
+
+                // 3. Actualizar menú VR si existe
                 if (this.vrMenuSystem.isActive && this.css3DAvailable) {
                     this.positionVRMenu();
                 }
