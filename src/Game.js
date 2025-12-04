@@ -1207,6 +1207,44 @@ export class Game {
         console.log("✅ Menú principal cargado correctamente");
     }
 
+    async enterVRAndStart() {
+        console.log("🥽 Solicitando entrada a VR...");
+
+        // 1. Verificar si el navegador soporta VR
+        if ('xr' in navigator) {
+            const isSupported = await navigator.xr.isSessionSupported('immersive-vr');
+            
+            if (isSupported) {
+                try {
+                    // 2. Pedir la sesión al navegador (esto requiere clic del usuario)
+                    const session = await navigator.xr.requestSession('immersive-vr', {
+                        optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking']
+                    });
+
+                    // 3. Conectar la sesión a Three.js
+                    await this.renderer.xr.setSession(session);
+                    
+                    console.log("✅ Sesión VR concedida. Iniciando juego...");
+                    
+                    // 4. Arrancar el juego inmediatamente
+                    this.startGame();
+                    
+                } catch (err) {
+                    console.error("❌ Error al entrar en VR:", err);
+                    // Si falla (ej: cancelaste), inicia en modo normal
+                    this.startGame();
+                }
+            } else {
+                console.warn("⚠️ Tu navegador no soporta VR inmersivo.");
+                this.startGame();
+            }
+        } else {
+            console.warn("⚠️ WebXR no disponible.");
+            this.startGame();
+        }
+    }
+    // =========================================================
+
     startGame() {
         this.clock.start();
         console.log("🚀 INICIANDO JUEGO");

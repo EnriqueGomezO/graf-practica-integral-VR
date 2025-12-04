@@ -51,8 +51,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     startButton.addEventListener('click', () => {
-        console.log("Botón de inicio presionado.");
-        window.game.startGame();
+        console.log("Botón de inicio presionado. Intentando entrar en VR...");
+        
+        // CAMBIO IMPORTANTE: Llamamos a la nueva función
+        if (window.game) {
+            window.game.enterVRAndStart(); 
+        }
     });
 
     restartButton.addEventListener('click', () => {
