@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------
-// --- VRControls.js (CORREGIDO - CARRILES Y MENÚS FUNCIONALES)
+// --- VRControls.js (CORREGIDO - MOVIMIENTO RESPONSIVO INSTANTÁNEO)
 // -----------------------------------------------------------------
 
 import * as THREE from 'three';
@@ -16,24 +16,14 @@ export class VRControls {
         this.controllers = [];
         this.raycaster = new THREE.Raycaster();
         
-        // SISTEMA DE GIRO DE CABEZA CORREGIDO
+        // ESTADO DE GIRO SIMPLIFICADO (NUEVO)
         this.gazeState = {
-            currentLane: 1,
-            targetLane: 1,
-            gazeAngle: 0,
-            lastGazeAngle: 0,
-            gazeTimer: 0,
-            gazeThreshold: Config.VR_SETTINGS.GAZE_THRESHOLD,
-            hysteresis: 0.15, // Aumentado para mejor filtrado
-            confirmedAngle: 0,
-            returningToCenter: false,
-            centerThreshold: 0.2, // Aumentado
-            minGazeDuration: 0.4, // Aumentado
-            directionLock: false, // Evita cambios múltiples
-            lastDirection: 0
+            canChangeLane: true,      // Bandera para permitir movimiento
+            resetThreshold: 0.10,     // Zona muerta central para resetear
+            currentAngle: 0
         };
         
-        // Estados de botones para Meta Quest 3
+        // Estados de botones
         this.buttonStates = {
             A: { pressed: false, lastPressed: false },
             B: { pressed: false, lastPressed: false },
@@ -45,56 +35,24 @@ export class VRControls {
         };
         
         this.setupControllers();
-        console.log("✅ VRControls Meta Quest 3 - Sistema de giro mejorado");
+        console.log("✅ VRControls - Sistema de giro optimizado cargado");
     }
     
     setupControllers() {
-        if (!this.renderer.xr.enabled) {
-            console.warn("WebXR no está habilitado");
-            return;
-        }
+        if (!this.renderer.xr.enabled) return;
         
         for (let i = 0; i < 2; i++) {
             const controller = this.renderer.xr.getController(i);
             this.scene.add(controller);
             this.controllers.push(controller);
-            
             this.setupMetaQuestEvents(controller, i);
             this.addControllerRay(controller, i);
         }
-        
-        console.log("🎮 Controladores configurados para Meta Quest 3");
     }
     
     setupMetaQuestEvents(controller, index) {
-        // Eventos básicos
         controller.addEventListener('selectstart', () => this.onSelectStart(index));
-        controller.addEventListener('selectend', () => this.onSelectEnd(index));
         controller.addEventListener('squeezestart', () => this.onSqueezeStart(index));
-        controller.addEventListener('squeezeend', () => this.onSqueezeEnd(index));
-        
-        // Conexión
-        controller.addEventListener('connected', (event) => {
-            this.onControllerConnected(event, index);
-        });
-    }
-    
-    onControllerConnected(event, index) {
-        const controllerType = event.data.targetRayMode || 'unknown';
-        const profiles = event.data.profiles || [];
-        
-        console.log(`✅ Controlador ${index} conectado:`, {
-            tipo: controllerType,
-            perfiles: profiles,
-            handedness: event.data.handedness
-        });
-        
-        // Detectar Meta Quest
-        if (profiles.includes('oculus-touch-v3') || 
-            profiles.includes('meta-quest-touch-plus') ||
-            profiles.includes('meta-quest-touch-pro')) {
-            console.log(`🎮 Meta Quest detectado en controlador ${index}`);
-        }
     }
     
     addControllerRay(controller, index) {
@@ -102,295 +60,119 @@ export class VRControls {
             new THREE.Vector3(0, 0, 0),
             new THREE.Vector3(0, 0, -1)
         ]);
-        
         const material = new THREE.LineBasicMaterial({ 
             color: index === 0 ? 0xff0000 : 0x0000ff,
             opacity: 0.3,
             transparent: true
         });
-        
         const line = new THREE.Line(geometry, material);
         line.scale.z = 3;
         controller.add(line);
     }
     
     onSelectStart(controllerIndex) {
-        console.log(`🎮 Trigger ${controllerIndex} presionado`);
-        
-        if (controllerIndex === 0) { // Izquierdo - Saltar
-            if (this.player && this.player.state !== 'dead') {
-                this.player.jump();
-                this.vibrateController(controllerIndex, 0.3, 100);
-            }
-        } else if (controllerIndex === 1) { // Derecho - Rodar
-            if (this.player && this.player.state !== 'dead') {
-                this.player.roll();
-                this.vibrateController(controllerIndex, 0.3, 100);
-            }
+        // Trigger: Izquierda = Saltar, Derecha = Rodar
+        if (this.player && this.player.state !== 'dead') {
+            if (controllerIndex === 0) this.player.jump();
+            else if (controllerIndex === 1) this.player.roll();
+            this.vibrateController(controllerIndex, 0.5, 50);
         }
-    }
-    
-    onSelectEnd(controllerIndex) {
-        console.log(`🎮 Trigger ${controllerIndex} liberado`);
     }
     
     onSqueezeStart(controllerIndex) {
-        console.log(`🎮 Grip ${controllerIndex} presionado`);
-        
-        this.buttonStates.Grip.pressed = true;
-        
-        if (!this.buttonStates.Grip.lastPressed) {
-            this.buttonStates.Grip.lastPressed = true;
-            
-            // Toggle del menú de pausa
-            if (this.player && this.player.game && this.player.game.toggleVRPauseMenu) {
-                this.player.game.toggleVRPauseMenu();
-                this.vibrateController(controllerIndex, 0.5, 150);
-            }
+        // Grip: Menú de Pausa
+        if (this.player && this.player.game && this.player.game.toggleVRPauseMenu) {
+            this.player.game.toggleVRPauseMenu();
+            this.vibrateController(controllerIndex, 0.5, 100);
         }
-    }
-    
-    onSqueezeEnd(controllerIndex) {
-        console.log(`🎮 Grip ${controllerIndex} liberado`);
-        this.buttonStates.Grip.pressed = false;
-        this.buttonStates.Grip.lastPressed = false;
     }
     
     update(deltaTime) {
         if (!this.renderer.xr.isPresenting) return;
         
-        // 1. Actualizar detección de botones
-        this.updateButtonStates(deltaTime);
+        // 1. Actualizar Giro de Cabeza (Movimiento)
+        this.updateHeadGazeControls();
         
-        // 2. Actualizar detección de giro de cabeza CORREGIDO
-        this.updateHeadGazeControls(deltaTime);
+        // 2. Actualizar Botones
+        this.updateButtonStates();
         
-        // 3. Actualizar posición de cámara
-        this.updateCameraPosition();
-        
-        // 4. Debug opcional
-        if (Math.random() < 0.01) {
-            this.debugGazeState();
+        // 3. La cámara sigue al jugador suavemente en X
+        if (this.cameraContainer && this.player) {
+            const targetX = this.player.group.position.x;
+            this.cameraContainer.position.x += (targetX - this.cameraContainer.position.x) * 0.1;
         }
     }
-    
-    updateButtonStates(deltaTime) {
-        if (!this.renderer.xr.getSession()) return;
-        
-        const session = this.renderer.xr.getSession();
-        if (!session.inputSources) return;
-        
-        session.inputSources.forEach((inputSource, index) => {
-            if (inputSource.gamepad) {
-                const gamepad = inputSource.gamepad;
-                
-                // Botón A/X (índice 4 en Quest)
-                const buttonA = gamepad.buttons[4];
-                if (buttonA && buttonA.pressed && !this.buttonStates.A.lastPressed) {
-                    console.log(`🎮 Botón A/X presionado en controlador ${index}`);
-                    this.buttonStates.A.pressed = true;
-                    this.buttonStates.A.lastPressed = true;
-                    
-                    // Pausar con botón A/X
-                    if (this.player && this.player.game && this.player.game.toggleVRPauseMenu) {
-                        this.player.game.toggleVRPauseMenu();
-                    }
-                    
-                    this.vibrateController(index, 0.7, 200);
-                } else if (!buttonA?.pressed) {
-                    this.buttonStates.A.lastPressed = false;
-                }
-                
-                // Botón B/Y (índice 5 en Quest)
-                const buttonB = gamepad.buttons[5];
-                if (buttonB && buttonB.pressed && !this.buttonStates.B.lastPressed) {
-                    console.log(`🎮 Botón B/Y presionado en controlador ${index}`);
-                    this.buttonStates.B.pressed = true;
-                    this.buttonStates.B.lastPressed = true;
-                    
-                    // Salir de menú
-                    if (this.player && this.player.game && this.player.game.hideVRMenu) {
-                        this.player.game.hideVRMenu();
-                        this.player.game.resumeGameFromVRMenu();
-                    }
-                    
-                    this.vibrateController(index, 0.5, 150);
-                } else if (!buttonB?.pressed) {
-                    this.buttonStates.B.lastPressed = false;
-                }
-                
-                // Botón Menú (índice 2)
-                const menuButton = gamepad.buttons[2];
-                if (menuButton && menuButton.pressed && !this.buttonStates.Menu.lastPressed) {
-                    console.log(`🎮 Botón Menú presionado`);
-                    this.buttonStates.Menu.pressed = true;
-                    this.buttonStates.Menu.lastPressed = true;
-                    
-                    // Menú del sistema
-                    this.vibrateController(index, 0.4, 100);
-                } else if (!menuButton?.pressed) {
-                    this.buttonStates.Menu.lastPressed = false;
-                }
-            }
-        });
-    }
-    
-    // NUEVO SISTEMA DE GIRO CORREGIDO
-    updateHeadGazeControls(deltaTime) {
+
+    // --- LÓGICA DE MOVIMIENTO CORREGIDA ---
+    updateHeadGazeControls() {
         if (!this.camera) return;
-        
-        // Obtener dirección de mirada
+
+        // 1. Obtener dirección de la mirada
         const gazeDirection = new THREE.Vector3();
         this.camera.getWorldDirection(gazeDirection);
         
-        // Calcular ángulo de giro (solo en eje XZ, ignorar Y)
-        const currentAngle = Math.atan2(gazeDirection.x, gazeDirection.z);
-        this.gazeState.gazeAngle = currentAngle;
+        // gazeDirection.x: Negativo = Izquierda, Positivo = Derecha
+        const rotationX = gazeDirection.x; 
         
-        // Calcular ángulo absoluto
-        const absAngle = Math.abs(currentAngle);
+        const threshold = Config.VR_SETTINGS.GAZE_THRESHOLD; 
+        const resetZone = this.gazeState.resetThreshold;
         
-        // Determinar si está en zona central
-        const isInCenter = absAngle < this.gazeState.centerThreshold;
-        
-        // Sistema de dirección bloqueada para evitar cambios múltiples
-        if (isInCenter) {
-            this.gazeState.directionLock = false;
-            this.gazeState.returningToCenter = false;
-        } else if (this.gazeState.confirmedAngle !== 0 && 
-                   Math.sign(currentAngle) !== Math.sign(this.gazeState.confirmedAngle)) {
-            // Cambió de dirección - probablemente regresando al centro
-            this.gazeState.returningToCenter = true;
-        }
-        
-        // Si está regresando al centro, ignorar detecciones
-        if (this.gazeState.returningToCenter) {
-            if (isInCenter) {
-                // Llegó al centro, resetear todo
-                this.gazeState.returningToCenter = false;
-                this.gazeState.confirmedAngle = 0;
-                this.gazeState.gazeTimer = 0;
-                this.gazeState.directionLock = false;
-            }
-            return;
-        }
-        
-        // Verificar si supera el umbral
-        if (absAngle > this.gazeState.gazeThreshold) {
-            // Determinar dirección
-            const direction = currentAngle < 0 ? -1 : 1;
+        // LÓGICA DE DISPARO Y RESETEO
+        if (this.gazeState.canChangeLane) {
+            // Estamos listos para movernos
             
-            // Si la dirección está bloqueada, ignorar
-            if (this.gazeState.directionLock && direction !== this.gazeState.lastDirection) {
-                return;
-            }
-            
-            this.gazeState.gazeTimer += deltaTime;
-            
-            // Solo confirmar después del tiempo mínimo
-            if (this.gazeState.gazeTimer >= this.gazeState.minGazeDuration) {
-                // Bloquear dirección para evitar cambios múltiples
-                if (!this.gazeState.directionLock) {
-                    this.gazeState.directionLock = true;
-                    this.gazeState.lastDirection = direction;
-                }
+            if (rotationX < -threshold) {
+                // MIRADA A LA IZQUIERDA
+                console.log("⬅️ VR: Mover Izquierda");
+                this.changeLane(-1);
+                this.gazeState.canChangeLane = false; // Bloquear
                 
-                // Solo cambiar si el ángulo confirmado es diferente
-                const targetAngle = direction * this.gazeState.gazeThreshold;
-                
-                if (Math.sign(this.gazeState.confirmedAngle) !== Math.sign(targetAngle)) {
-                    this.gazeState.confirmedAngle = targetAngle;
-                    
-                    // Calcular carril objetivo
-                    let targetLane = this.gazeState.currentLane + direction;
-                    targetLane = THREE.MathUtils.clamp(targetLane, 0, 2);
-                    
-                    // Solo cambiar si es diferente del actual
-                    if (targetLane !== this.gazeState.currentLane) {
-                        this.gazeState.targetLane = targetLane;
-                        this.changeLaneByGaze(targetLane);
-                        this.gazeState.currentLane = targetLane;
-                        
-                        console.log(`👁️ Cambio de carril por mirada: ${targetLane} (ángulo: ${currentAngle.toFixed(2)})`);
-                        
-                        // Vibración sutil
-                        this.vibrateController(0, 0.2, 50);
-                    }
-                }
+            } else if (rotationX > threshold) {
+                // MIRADA A LA DERECHA
+                console.log("➡️ VR: Mover Derecha");
+                this.changeLane(1);
+                this.gazeState.canChangeLane = false; // Bloquear
             }
+            
         } else {
-            // Está en zona central o por debajo del umbral
-            this.gazeState.gazeTimer = Math.max(0, this.gazeState.gazeTimer - deltaTime * 2);
-            
-            // Si vuelve al centro, resetear después de un tiempo
-            if (absAngle < this.gazeState.centerThreshold) {
-                this.gazeState.confirmedAngle = 0;
-                this.gazeState.directionLock = false;
+            // Esperar a que el usuario mire al frente para desbloquear
+            if (Math.abs(rotationX) < resetZone) {
+                this.gazeState.canChangeLane = true;
             }
         }
-        
-        // Actualizar último ángulo
-        this.gazeState.lastGazeAngle = currentAngle;
     }
     
-    changeLaneByGaze(targetLane) {
+    changeLane(direction) {
+        if (!this.player || this.player.state === 'dead') return;
+        
         const currentLane = this.player.currentLane;
-        
-        if (targetLane !== currentLane) {
-            const direction = targetLane > currentLane ? 1 : -1;
-            
-            // Llamar al método strafe del jugador
-            this.player.strafe(direction);
-            
-            // Actualizar estado de gaze
-            this.gazeState.currentLane = targetLane;
-        }
-    }
-    
-    updateCameraPosition() {
-        if (this.cameraContainer && this.player) {
-            const playerPos = this.player.group.position;
-            
-            // Suavizar el seguimiento
-            this.cameraContainer.position.x += (playerPos.x - this.cameraContainer.position.x) * 0.1;
-            this.cameraContainer.position.z += (playerPos.z - this.cameraContainer.position.z) * 0.1;
-        }
-    }
-    
-    vibrateController(controllerIndex, intensity, duration) {
-        if (!this.renderer.xr.isPresenting) return;
-        
-        const controller = this.controllers[controllerIndex];
-        if (controller && controller.inputSource && controller.inputSource.hapticActuators) {
-            const actuator = controller.inputSource.hapticActuators[0];
-            if (actuator) {
-                actuator.pulse(intensity, duration).catch(err => {
-                    console.log("⚠️ Háptica no disponible:", err);
-                });
-            }
-        }
-    }
-    
-    debugGazeState() {
-        console.log("👁️ Estado Gaze:", {
-            ángulo: this.gazeState.gazeAngle.toFixed(3),
-            confirmado: this.gazeState.confirmedAngle.toFixed(3),
-            temporizador: this.gazeState.gazeTimer.toFixed(2),
-            carrilActual: this.gazeState.currentLane,
-            carrilTarget: this.gazeState.targetLane,
-            bloqueado: this.gazeState.directionLock,
-            regresando: this.gazeState.returningToCenter
-        });
-    }
-    
-    // Método para forzar cambio de carril (debug)
-    forceChangeLane(direction) {
-        const currentLane = this.gazeState.currentLane;
+        // Calcular carril objetivo (0, 1, 2)
         const targetLane = THREE.MathUtils.clamp(currentLane + direction, 0, 2);
         
         if (targetLane !== currentLane) {
-            this.changeLaneByGaze(targetLane);
-            console.log(`🔧 Cambio forzado de carril: ${currentLane} -> ${targetLane}`);
+            this.player.strafe(direction);
+            // Feedback táctil suave en ambos mandos
+            this.vibrateController(0, 0.3, 50); 
+            this.vibrateController(1, 0.3, 50);
+        }
+    }
+    
+    updateButtonStates() {
+        // Implementación básica para compatibilidad de botones físicos si se agregan a futuro
+        const session = this.renderer.xr.getSession();
+        if (session && session.inputSources) {
+            session.inputSources.forEach((source) => {
+                if (source.gamepad) {
+                    // Aquí podrías leer botones extra si lo necesitas
+                }
+            });
+        }
+    }
+    
+    vibrateController(index, intensity, duration) {
+        if (this.controllers[index] && this.controllers[index].inputSource && this.controllers[index].inputSource.hapticActuators) {
+            const actuator = this.controllers[index].inputSource.hapticActuators[0];
+            if (actuator) actuator.pulse(intensity, duration);
         }
     }
 }

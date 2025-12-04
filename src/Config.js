@@ -73,15 +73,19 @@ export const Config = {
     DESPAWN_Z: 20,
 
     // ===== CONFIGURACIÓN VR PRIMERA PERSONA MEJORADA =====
+    // ===== CONFIGURACIÓN VR PRIMERA PERSONA MEJORADA =====
     VR_SETTINGS: {
         PLAYER_HEIGHT: 1.6,
-        GAZE_THRESHOLD: 0.3,
-        GAZE_DURATION: 0.5,
+        
+        // AJUSTES DE SENSIBILIDAD (Modificado para mejor respuesta)
+        GAZE_THRESHOLD: 0.20,   // Umbral más bajo = más fácil de activar (aprox 11 grados)
+        
+        GAZE_DURATION: 0.1,     // Ya no se usa con el nuevo sistema, pero se deja por compatibilidad
         CAMERA_SMOOTHING: 0.1,
         
-        // NUEVO: Ajustes de cámara VR
-        CAMERA_OFFSET_Y: 0.3,           // Offset vertical de la cámara
-        CAMERA_LERP_SPEED: 0.1,         // Velocidad de interpolación
+        // Ajustes de cámara VR
+        CAMERA_OFFSET_Y: 0.3,           
+        CAMERA_LERP_SPEED: 0.1,         
     },
 
     // ===== CONFIGURACIÓN DE MENÚS VR =====

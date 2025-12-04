@@ -312,26 +312,29 @@ export class Player {
         }
     }
 
-    // MODIFICAR método strafe para mejor feedback
+    // Reemplaza tu función strafe existente por esta:
     strafe(direction) {
         if (this.state === Config.PLAYER_STATE.DEAD) return; 
 
+        // Calcular hacia dónde vamos
         const targetLane = this.currentLane + direction;
-        this.currentLane = THREE.MathUtils.clamp(targetLane, 0, 2);
+        
+        // IMPORTANTE: Asegurar que no nos salimos de los límites (0 a 2)
+        if (targetLane >= 0 && targetLane <= 2) {
+            this.currentLane = targetLane;
 
-        if (this.state === Config.PLAYER_STATE.RUNNING) {
-            if (direction === -1 && this.actions.left) {
-                this.switchAnimation('left');
-                console.log(`🔄 Moviendo a izquierda - Carril ${this.currentLane}`);
-            } else if (direction === 1 && this.actions.right) {
-                this.switchAnimation('right');
-                console.log(`🔄 Moviendo a derecha - Carril ${this.currentLane}`);
-            } else {
+            // Animación y logs
+            if (this.state === Config.PLAYER_STATE.RUNNING) {
+                if (direction === -1 && this.actions.left) {
+                    this.switchAnimation('left');
+                } else if (direction === 1 && this.actions.right) {
+                    this.switchAnimation('right');
+                }
                 console.log(`🔄 Moviendo a carril ${this.currentLane}`);
             }
+            
+            this.needsBoundingBoxUpdate = true;
         }
-        
-        this.needsBoundingBoxUpdate = true;
     }
 
     jump() {
