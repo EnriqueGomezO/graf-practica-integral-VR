@@ -279,9 +279,8 @@ export class Game {
             this.player.group.position.z
         );
         
-        // SOLUCIÓN DEFINITIVA: Rotar 180 grados (Math.PI) para mirar hacia los obstáculos
-        this.cameraContainer.rotation.set(0, Math.PI, 0);
-        
+        // Forzamos rotación a 0 para que mire al frente
+        this.cameraContainer.rotation.set(0, 0, 0);
         // Notificar a la UI
         window.dispatchEvent(new CustomEvent('game-vr-start'));
         
@@ -1230,7 +1229,7 @@ export class Game {
         
         // CORRECCIÓN: Si inicia directo en VR, forzar mirada al frente
         if (this.isVRMode) {
-            this.cameraContainer.rotation.set(0, Math.PI, 0);
+            this.cameraContainer.rotation.set(0, 0, 0); // <--- Pon 0 aquí también
         }
         
         this.animate();
@@ -1303,7 +1302,7 @@ export class Game {
         
         // CORRECCIÓN: Al reiniciar en VR, forzar mirada al frente de nuevo
         if (this.isVRMode) {
-            this.cameraContainer.rotation.set(0, Math.PI, 0);
+            this.cameraContainer.rotation.set(0, 0, 0); // <--- Pon 0 aquí también
         }
         
         this.animate();
