@@ -279,13 +279,16 @@ export class Game {
             this.player.group.position.z
         );
         
+        // CORRECCIÓN: Forzar que la cámara mire hacia adelante (eje -Z)
+        this.cameraContainer.rotation.set(0, 0, 0);
+        
         // Notificar a la UI
         window.dispatchEvent(new CustomEvent('game-vr-start'));
         
         // Mostrar instrucciones VR específicas para Meta Quest
         this.showVRInstructions();
         
-        console.log("🎮 Modo VR Meta Quest 3 activado - Sistema de giro mejorado");
+        console.log("🎮 Modo VR Meta Quest 3 activado - Vista alineada al frente");
     }
 
     onVREnd() {
@@ -1231,6 +1234,11 @@ export class Game {
         // Resetear lógica del juego
         this.resetGameLogic();
         
+        // CORRECCIÓN: Asegurar vista al frente si se inicia directo en VR
+        if (this.isVRMode) {
+            this.cameraContainer.rotation.set(0, 0, 0);
+        }
+        
         // Iniciar loop de animación
         this.animate();
     }
@@ -1304,6 +1312,11 @@ export class Game {
         
         // Resetear lógica
         this.resetGameLogic();
+        
+        // CORRECCIÓN: Si reiniciamos en VR, asegurar que miramos al frente
+        if (this.isVRMode) {
+            this.cameraContainer.rotation.set(0, 0, 0);
+        }
         
         // Reanudar animación
         this.animate();
