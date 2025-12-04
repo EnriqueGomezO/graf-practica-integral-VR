@@ -152,7 +152,7 @@ export class ObstacleManager {
                 
             case Config.OBSTACLE_TYPE.WALL:
                 modelSource = this.assets.car;
-                positionY = 0.5;
+                positionY = 0;
                 scale = 0.012;
                 break;
                 

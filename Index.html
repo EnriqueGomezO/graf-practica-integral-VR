@@ -1018,21 +1018,21 @@
                 
                 <div class="control-item">
                     <div class="control-keys">
-                        <span class="key">🖐️ L Trigger</span>
+                        <span class="key">LT</span>
                     </div>
                     <span>Controller izquierdo - Saltar</span>
                 </div>
                 
                 <div class="control-item">
                     <div class="control-keys">
-                        <span class="key">🖐️ R Trigger</span>
+                        <span class="key">RT</span>
                     </div>
                     <span>Controller derecho - Rodar</span>
                 </div>
                 
                 <div class="control-item">
                     <div class="control-keys">
-                        <span class="key">🖐️ Grip</span>
+                        <span class="key">LG/RG</span>
                     </div>
                     <span>Cualquier mano - Pausa rápida</span>
                 </div>
@@ -1058,7 +1058,6 @@
             
             <!-- Botones adicionales en el menú principal -->
             <div class="menu-buttons">
-                <button id="settings-button" class="menu-button">⚙️ CONFIGURACIÓN</button>
                 <button id="credits-button" class="menu-button">👥 CRÉDITOS</button>
             </div>
             
@@ -1364,13 +1363,6 @@
             creditsButton.addEventListener('click', function() {
                 document.getElementById('modal-overlay').style.display = 'none';
                 creditsScreen.style.display = 'block';
-            });
-            
-            settingsButton.addEventListener('click', function() {
-                document.getElementById('modal-overlay').style.display = 'none';
-                if (settingsScreen) {
-                    settingsScreen.style.display = 'block';
-                }
             });
             
             backFromCredits.addEventListener('click', function() {
