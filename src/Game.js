@@ -768,6 +768,10 @@ export class Game {
         // Pausar música
         if (this.backgroundMusic && this.isMusicPlaying) {
             this.backgroundMusic.pause();
+            
+            // --- AGREGA ESTA LÍNEA AQUÍ ---
+            this.isMusicPlaying = false; 
+            // ------------------------------
         }
         
         // Pausar animaciones Three.js (equivalente a Time.timeScale = 0)

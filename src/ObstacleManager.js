@@ -158,7 +158,7 @@ export class ObstacleManager {
                 
             case Config.OBSTACLE_TYPE.BARREL: 
                 modelSource = this.assets.barrel;
-                positionY = 1.0;
+                positionY = 0;
                 scale = 0.02;
                 break;
                 
