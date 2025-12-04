@@ -1598,17 +1598,10 @@ export class Game {
             const obstacleBox = obstacle.getBoundingBox();
             
             if (playerBox.intersectsBox(obstacleBox)) {
-                console.log("🚨 ¡COLISIÓN CON OBSTÁCULO! Game Over");
+                console.log("🚨 ¡COLISIÓN CON OBSTÁCULO! Iniciando Game Over...");
                 
-                // SIEMPRE mostrar menú VR si está en modo VR
-                if (this.isVRMode) {
-                    console.log("🎮 Modo VR - Mostrando menú VR de Game Over");
-                    this.showVRGameOverMenu();
-                } else {
-                    // Modo normal - mostrar menú tradicional
-                    console.log("🖥️ Modo normal - Mostrando menú tradicional");
-                    this.gameOver("COLISIÓN CON OBSTÁCULO");
-                }
+                // CAMBIO: Llamamos siempre a gameOver(), ya no usamos showVRGameOverMenu()
+                this.gameOver("COLISIÓN CON OBSTÁCULO");
                 return;
             }
         }
@@ -1706,49 +1699,50 @@ export class Game {
         this.isGameOver = true;
         this.pauseBackgroundMusic();
 
-        // Ejecutar animación de muerte del jugador
+        // 1. Ejecutar animación de muerte del jugador
         if (this.player) {
             this.player.die();
         }
 
-        // DECISIÓN: ¿Mostrar menú VR o tradicional?
+        // 2. DETECTAR SI ESTAMOS EN VR Y SALIR
         if (this.isVRMode) {
-            // En VR, usar menú VR
-            console.log("🎮 VR Mode - Usando menú VR para Game Over");
-            this.showVRGameOverMenu();
-        } else {
-            // Modo normal, usar menú tradicional
-            console.log("🖥️ Normal Mode - Usando menú tradicional para Game Over");
+            console.log("🥽 Detectado modo VR - Saliendo de la sesión para mostrar menú...");
             
-            // Configurar animación de muerte
-            if (this.player && this.player.mixer) {
-                const dieAction = this.player.actions.die;
-
-                const onDieAnimationFinished = (e) => {
-                    if (e.action === dieAction) {
-                        console.log("💀 Animación 'die' terminada. Mostrando menú tradicional.");
-
-                        // Actualizar estadísticas finales
-                        document.getElementById('final-score').textContent = this.score;
-                        document.getElementById('final-distance').textContent = Math.floor(this.distance) + 'm';
-                        document.getElementById('final-coins').textContent = Math.floor(this.score / 10);
-                        document.getElementById('final-time').textContent = Math.floor(this.survivalTime) + 's';
-
-                        // Mostrar menú tradicional de Game Over
-                        this.ui.gameOver.style.display = 'block';
-
-                        this.player.mixer.removeEventListener('finished', onDieAnimationFinished);
-                    }
-                };
-
-                this.player.mixer.addEventListener('finished', onDieAnimationFinished);
-            } else {
-                // Fallback si no hay animación
-                setTimeout(() => {
-                    this.ui.gameOver.style.display = 'block';
-                }, 1000);
+            const session = this.renderer.xr.getSession();
+            if (session) {
+                // Esta función fuerza al navegador a salir del modo inmersivo
+                session.end().then(() => {
+                    console.log("✅ Salida de VR exitosa");
+                }).catch(err => {
+                    console.error("❌ Error al salir de VR:", err);
+                });
             }
         }
+
+        // 3. MOSTRAR MENÚ HTML (Usamos un pequeño retraso para dar tiempo a la transición)
+        setTimeout(() => {
+            console.log("🖥️ Mostrando menú 2D de Game Over");
+            
+            // Actualizar estadísticas finales en el HTML
+            const finalScoreEl = document.getElementById('final-score');
+            const finalDistEl = document.getElementById('final-distance');
+            const finalCoinsEl = document.getElementById('final-coins');
+            const finalTimeEl = document.getElementById('final-time');
+
+            if (finalScoreEl) finalScoreEl.textContent = this.score;
+            if (finalDistEl) finalDistEl.textContent = Math.floor(this.distance) + 'm';
+            if (finalCoinsEl) finalCoinsEl.textContent = Math.floor(this.score / 10);
+            if (finalTimeEl) finalTimeEl.textContent = Math.floor(this.survivalTime) + 's';
+
+            // Mostrar el div de Game Over
+            if (this.ui.gameOver) {
+                this.ui.gameOver.style.display = 'block';
+            }
+            
+            // Asegurarnos que el cursor del mouse sea visible de nuevo
+            document.body.style.cursor = 'default';
+
+        }, 500); // Esperamos medio segundo para que la transición de salir de VR sea suave
     }
 
     // AÑADIR método para debug de carriles
